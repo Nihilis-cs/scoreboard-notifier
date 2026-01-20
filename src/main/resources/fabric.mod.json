@@ -4,12 +4,12 @@
 "version": "${version}",
 "name": "Scoreboard Notifier",
 "description": "Discord notifications for scoreboard events",
-"authors": ["You"],
+"authors": ["NihilisDuku"],
 "contact": {},
 "license": "MIT",
 "environment": "server",
 "entrypoints": {
-"main": ["fr.example.scoreboardnotifier.ScoreboardNotifierMod"]
+"main": ["fr.nihilis.scoreboardnotifier.ScoreboardNotifierMod"]
 },
 "mixins": ["mixins.scoreboardnotifier.json"],
 "depends": {
