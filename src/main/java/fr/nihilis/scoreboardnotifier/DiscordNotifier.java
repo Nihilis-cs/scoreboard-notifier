@@ -8,26 +8,68 @@ import java.net.http.HttpResponse;
 public class DiscordNotifier {
 
     private final String webhookUrl;
-    private final HttpClient client;
+    private final HttpClient client = HttpClient.newHttpClient();
 
     public DiscordNotifier(String webhookUrl) {
         this.webhookUrl = webhookUrl;
-        this.client = HttpClient.newHttpClient();
     }
 
-    public void send(String message) {
+    public void sendLeaderChange(String faction, String message) {
+        int color = getFactionColor(faction);
+
+        String json = """
+        {
+          "content": "",
+          "embeds": [
+            {
+              "title": "🏆 Tournoi des 3 maisons",
+              "description": "%s",
+              "color": %d,
+              "author": {
+                "name": "Dukumon"
+              },
+              "footer": {
+                "text": "Serveur Minecraft"
+              }
+            }
+          ]
+        }
+        """.formatted(
+                escape(message),
+                color
+        );
+
+        sendRaw(json);
+    }
+
+    private void sendRaw(String json) {
         try {
-            String json = "{\"content\": \"" + message + "\"}";
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(webhookUrl))
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(json))
                     .build();
 
-            client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                    .thenAccept(response -> System.out.println("Webhook sent: " + response.statusCode()));
+            client.sendAsync(request, HttpResponse.BodyHandlers.discarding());
+
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    private int getFactionColor(String faction) {
+        return switch (faction) {
+            case "Salador" -> 0xE74C3C;      // rouge
+            case "Caradaigle" -> 0x3498DB;  // bleu
+            case "Bulbitard" -> 0x2ECC71;   // vert
+            default -> 0xF1C40F;            // or
+        };
+    }
+
+    private String escape(String text) {
+        return text
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n");
     }
 }

@@ -53,7 +53,7 @@ public class ScoreboardTracker {
             if (newLeader != null && !newLeader.equals(currentLeader)) {
                 currentLeader = newLeader;
                 String message = currentLeader + " passe en tête du tournoi des 3 maisons!";
-                discord.send(message);
+                discord.sendLeaderChange(currentLeader, message);
                 System.out.println(message);
             }
 
