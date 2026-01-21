@@ -1,8 +1,10 @@
 package fr.nihilis.scoreboardnotifier;
 
+import fr.nihilis.scoreboardnotifier.events.GameEvent;
+import fr.nihilis.scoreboardnotifier.events.GameEventBus;
+import fr.nihilis.scoreboardnotifier.events.LeaderboardChangedEvent;
 import net.minecraft.scoreboard.*;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.text.Text;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -17,77 +19,45 @@ public class LeaderboardService {
             "Bulbitard"
     );
 
-    private static final String OBJECTIVE_NAME = "Tournament";
-    private static final int TICK_INTERVAL = 200;
+    private static final String OBJECTIVE_NAME = "housePoint";
+    private static final LocalTime DAILY_MESSAGE_TIME = LocalTime.of(18, 30);
 
     private final DiscordNotifier discord;
-    private String currentLeader = null;
-    private int tickCounter = 0;
+
+    // Dernier état connu du leaderboard
     private LeaderboardState lastState = null;
 
+    // Daily
     private LocalDate lastDailyMessageDate = null;
-    private static final LocalTime DAILY_MESSAGE_TIME = LocalTime.of(18, 30);
 
     public LeaderboardService(DiscordNotifier discord) {
         this.discord = discord;
+
+        // Enregistrement en tant que listener
+        GameEventBus.register(this::onGameEvent);
     }
 
-    public void onServerTick(MinecraftServer server) {
-        // On check toutes les 5 secondes (20 ticks = 1s)
-        tickCounter++;
-        if (tickCounter < TICK_INTERVAL) return;
-        tickCounter = 0;
-        //Recuperer le scoreboard et l'objective
-        // TODO Ici ca peut merder sur la récupération de l'objective
+    //Events handling
 
-        Scoreboard scoreboard = server.getScoreboard();
-        Optional<ScoreboardObjective> objective = scoreboard.getObjectives().
-                stream().filter(u -> u.getName().equals("housePoint")).findFirst();
-        if (objective.isEmpty()) return;
-        ScoreboardObjective obj = objective.orElseThrow();
-
-        //1-recuperer la liste des maisons
-        //2-Comparer les 3
-        //3-ressortir la premiere
-        List<String> leaders = new ArrayList<>();
-        int bestScore = Integer.MIN_VALUE;
-
-        Collection<ScoreHolder> factions = scoreboard.getKnownScoreHolders(); //TODO filtrer par academy_houses
-        //On définit la faction leader en comparant les valeurs les unes aux autres
-        for (ScoreHolder faction : factions) {
-            ReadableScoreboardScore score = scoreboard.getScore(faction, obj);
-            if (score == null) continue;
-
-            int value = score.getScore();
-            String factionName = faction.getNameForScoreboard();
-
-            if (value > bestScore) {
-                bestScore = value;
-                leaders.clear();
-                leaders.add(factionName);
-            } else if (value == bestScore) {
-                leaders.add(factionName);
-            }
+    private void onGameEvent(GameEvent event) {
+        if (event instanceof LeaderboardChangedEvent(LeaderboardState newState)) {
+            handleLeaderboardChange(newState);
         }
+    }
 
-        Set<String> leaderSet = new HashSet<>(leaders);
-        LeaderboardState newState = new LeaderboardState(leaderSet, bestScore);
-
-        //On envoie le message à 18h30
-        checkDailyMessage(bestScore, leaders);
-
-        // Premier passage (serveur qui démarre)
+    private void handleLeaderboardChange(LeaderboardState newState) {
+        // Premier état reçu
         if (lastState == null) {
             lastState = newState;
             return;
         }
 
-        // Aucun changement → on ne fait RIEN
+        // Aucun changement → rien à faire
         if (newState.equals(lastState)) {
             return;
         }
 
-        //Envoi des messages
+        // Leader unique
         if (newState.isSingleLeader()) {
             String leader = newState.singleLeader();
 
@@ -101,6 +71,7 @@ public class LeaderboardService {
         // Égalité
         else if (newState.isTie()) {
             String joined = String.join(", ", newState.leaders());
+
             String message =
                     "Égalité en tête du tournoi entre : " +
                             joined + " (" + newState.score() + " points)";
@@ -109,27 +80,28 @@ public class LeaderboardService {
             System.out.println("[ScoreboardNotifier] " + message);
         }
 
-        // On mémorise APRÈS avoir envoyé
         lastState = newState;
     }
-    private void checkDailyMessage(int bestScore, List<String> leaders) {
-        if (leaders.isEmpty() || bestScore == Integer.MIN_VALUE) return;
+
+    //Daily notif
+
+    public void checkDailyMessage() {
+        if (lastState == null) return;
+
         LocalDateTime now = LocalDateTime.now();
         LocalDate today = now.toLocalDate();
 
         // Pas encore l'heure
-        if (now.toLocalTime().isBefore(DAILY_MESSAGE_TIME)) {
-            return;
-        }
+        if (now.toLocalTime().isBefore(DAILY_MESSAGE_TIME)) return;
 
-        // Déjà envoyé aujourd'hui
+        // Déjà envoyé aujourd’hui
         if (lastDailyMessageDate != null && lastDailyMessageDate.equals(today)) {
             return;
         }
 
         // Leader unique
-        if (leaders.size() == 1) {
-            String leader = leaders.getFirst();
+        if (lastState.isSingleLeader()) {
+            String leader = lastState.singleLeader();
 
             String message = leader +
                     " est toujours en tête du tournoi des 3 maisons. " +
@@ -140,18 +112,56 @@ public class LeaderboardService {
         }
 
         // Égalité
-        else if (leaders.size() > 1) {
-            String joined = String.join(", ", leaders);
+        else if (lastState.isTie()) {
+            String joined = String.join(", ", lastState.leaders());
 
             String message =
                     "Toujours une égalité en tête entre " + joined +
-                            " (" + bestScore + " points). Rien n’est joué !";
+                            " (" + lastState.score() + " points). Y'a du taf !";
 
-            discord.sendDailyTie(leaders, bestScore);
+            discord.sendDailyTie(new ArrayList<>(lastState.leaders()), lastState.score());
             System.out.println("[ScoreboardNotifier] Daily: " + message);
         }
 
-        // On mémorise l'envoi
         lastDailyMessageDate = today;
+    }
+
+    //Calcul leader
+
+    public static LeaderboardState computeLeaderboard(MinecraftServer server) {
+        Scoreboard scoreboard = server.getScoreboard();
+
+        Optional<ScoreboardObjective> objective = scoreboard.getObjectives()
+                .stream()
+                .filter(o -> o.getName().equals(OBJECTIVE_NAME))
+                .findFirst();
+
+        if (objective.isEmpty()) {
+            return new LeaderboardState(Set.of(), Integer.MIN_VALUE);
+        }
+
+        ScoreboardObjective obj = objective.get();
+
+        int bestScore = Integer.MIN_VALUE;
+        Set<String> leaders = new HashSet<>();
+
+        for (String faction : FACTIONS) {
+            ReadableScoreboardScore score =
+                    scoreboard.getScore(ScoreHolder.fromName(faction), obj);
+
+            if (score == null) continue;
+
+            int value = score.getScore();
+
+            if (value > bestScore) {
+                bestScore = value;
+                leaders.clear();
+                leaders.add(faction);
+            } else if (value == bestScore) {
+                leaders.add(faction);
+            }
+        }
+
+        return new LeaderboardState(leaders, bestScore);
     }
 }
