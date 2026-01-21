@@ -73,6 +73,9 @@ public class LeaderboardService {
         Set<String> leaderSet = new HashSet<>(leaders);
         LeaderboardState newState = new LeaderboardState(leaderSet, bestScore);
 
+        //On envoie le message à 18h30
+        checkDailyMessage(bestScore, leaders);
+
         // Premier passage (serveur qui démarre)
         if (lastState == null) {
             lastState = newState;
@@ -108,8 +111,6 @@ public class LeaderboardService {
 
         // On mémorise APRÈS avoir envoyé
         lastState = newState;
-
-        checkDailyMessage(bestScore, leaders);
     }
     private void checkDailyMessage(int bestScore, List<String> leaders) {
         if (leaders.isEmpty() || bestScore == Integer.MIN_VALUE) return;
