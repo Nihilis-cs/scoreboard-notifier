@@ -4,6 +4,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.List;
 
 public class DiscordNotifier {
 
@@ -42,6 +43,41 @@ public class DiscordNotifier {
         sendRaw(json);
     }
 
+    public void sendTie(List<String> factions, int score) {
+        String factionList = String.join(", ", factions);
+
+        String description = """
+            ⚖️ **Égalité en tête du tournoi des 3 maisons !**
+            
+            %s sont à **%d points**.
+            Il va falloir redoubler d'efforts 💪
+            """.formatted(factionList, score);
+
+        String json = """
+        {
+          "content": "",
+          "embeds": [
+            {
+              "title": "⚖️ Tournoi des 3 maisons",
+              "description": "%s",
+              "color": %d,
+              "author": {
+                "name": "Dukumon"
+              },
+              "footer": {
+                "text": "Serveur Minecraft"
+              }
+            }
+          ]
+        }
+        """.formatted(
+                escape(description),
+                0xF1C40F
+        );
+
+        sendRaw(json);
+    }
+
     private void sendRaw(String json) {
         try {
             HttpRequest request = HttpRequest.newBuilder()
@@ -72,4 +108,8 @@ public class DiscordNotifier {
                 .replace("\"", "\\\"")
                 .replace("\n", "\\n");
     }
+
+    public void sendDailyLeader(String faction, String message){}
+    public void sendDailyTie(List<String> factions, int score) {}
+
 }
