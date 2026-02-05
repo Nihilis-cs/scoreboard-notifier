@@ -109,7 +109,71 @@ public class DiscordNotifier {
                 .replace("\n", "\\n");
     }
 
-    public void sendDailyLeader(String faction, String message){}
-    public void sendDailyTie(List<String> factions, int score) {}
+    public void sendDailyLeader(String faction, String message) {
+        int color = getFactionColor(faction);
+
+        String json = """
+        {
+          "content": "",
+          "embeds": [
+            {
+              "title": "📅 Rapport quotidien - Tournoi des 3 maisons",
+              "description": "%s",
+              "color": %d,
+              "author": {
+                "name": "Dukumon"
+              },
+              "footer": {
+                "text": "Serveur Minecraft"
+              },
+              "timestamp": "%s"
+            }
+          ]
+        }
+        """.formatted(
+                escape(message),
+                color,
+                java.time.Instant.now().toString()
+        );
+
+        sendRaw(json);
+    }
+
+    public void sendDailyTie(List<String> factions, int score) {
+        String factionList = String.join(", ", factions);
+
+        String description = """
+            📅 **Rapport quotidien du tournoi des 3 maisons**
+            
+            %s sont toujours à égalité avec **%d points**.
+            Il va falloir redoubler d'efforts ! 💪
+            """.formatted(factionList, score);
+
+        String json = """
+        {
+          "content": "",
+          "embeds": [
+            {
+              "title": "📅 Rapport quotidien - Tournoi des 3 maisons",
+              "description": "%s",
+              "color": %d,
+              "author": {
+                "name": "Dukumon"
+              },
+              "footer": {
+                "text": "Serveur Minecraft"
+              },
+              "timestamp": "%s"
+            }
+          ]
+        }
+        """.formatted(
+                escape(description),
+                0xF1C40F,
+                java.time.Instant.now().toString()
+        );
+
+        sendRaw(json);
+    }
 
 }

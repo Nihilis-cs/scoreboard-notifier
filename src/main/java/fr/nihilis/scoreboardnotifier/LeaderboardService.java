@@ -19,7 +19,7 @@ public class LeaderboardService {
             "Bulbitard"
     );
 
-    private static final String OBJECTIVE_NAME = "housePoint";
+    private static final String OBJECTIVE_NAME = "housePoints";
     private static final LocalTime DAILY_MESSAGE_TIME = LocalTime.of(18, 30);
 
     private final DiscordNotifier discord;
