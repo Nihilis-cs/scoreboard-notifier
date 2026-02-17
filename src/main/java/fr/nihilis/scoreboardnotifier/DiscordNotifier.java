@@ -19,7 +19,7 @@ public class DiscordNotifier {
         int color = getFactionColor(faction);
         String customMessage = getCustomLeaderMessage(faction);
 
-        String json = """
+        String json = safeFormat("""
         {
           "content": "",
           "embeds": [
@@ -36,7 +36,7 @@ public class DiscordNotifier {
             }
           ]
         }
-        """.formatted(
+        """,
                 escape(getFactionTitle(faction)),
                 escape(customMessage),
                 color
@@ -48,14 +48,14 @@ public class DiscordNotifier {
     public void sendTie(List<String> factions, int score) {
         String factionList = String.join(", ", factions);
 
-        String description = """
+        String description = safeFormat("""
             ⚖️ **Égalité en tête du tournoi des 3 maisons !**
             
             %s sont à **%d points**.
             Il va falloir redoubler d'efforts 💪
-            """.formatted(factionList, score);
+            """, factionList, score);
 
-        String json = """
+        String json = safeFormat("""
         {
           "content": "",
           "embeds": [
@@ -63,12 +63,8 @@ public class DiscordNotifier {
               "title": "⚖️ Tournoi des 3 maisons",
               "description": "%s",
               "color": %d,
-              "thumbnail": {
-                "url": "%s"
-              },
               "author": {
-                "name": "Dukumon",
-                "icon_url": "%s"
+                "name": "Dukumon"
               },
               "footer": {
                 "text": "Dukumon Academy"
@@ -76,7 +72,7 @@ public class DiscordNotifier {
             }
           ]
         }
-        """.formatted(
+        """,
                 escape(description),
                 0xF1C40F
         );
@@ -88,7 +84,7 @@ public class DiscordNotifier {
         int color = getFactionColor(faction);
         String customDailyMessage = getCustomDailyLeaderMessage(faction);
 
-        String json = """
+        String json = safeFormat("""
         {
           "content": "",
           "embeds": [
@@ -106,7 +102,7 @@ public class DiscordNotifier {
             }
           ]
         }
-        """.formatted(
+        """,
                 escape(getFactionDailyTitle(faction)),
                 escape(customDailyMessage),
                 color,
@@ -119,14 +115,14 @@ public class DiscordNotifier {
     public void sendDailyTie(List<String> factions, int score) {
         String factionList = String.join(", ", factions);
 
-        String description = """
+        String description = safeFormat("""
             📅 **Rapport quotidien du tournoi des 3 maisons**
             
             %s sont toujours à égalité avec **%d points**.
             Il va falloir redoubler d'efforts ! 💪
-            """.formatted(factionList, score);
+            """, factionList, score);
 
-        String json = """
+        String json = safeFormat("""
         {
           "content": "",
           "embeds": [
@@ -144,7 +140,7 @@ public class DiscordNotifier {
             }
           ]
         }
-        """.formatted(
+        """,
                 escape(description),
                 0xF1C40F,
                 java.time.Instant.now().toString()
@@ -260,6 +256,24 @@ public class DiscordNotifier {
                 .replace("\\", "\\\\")
                 .replace("\"", "\\\"")
                 .replace("\n", "\\n");
+    }
+
+    /**
+     * Formate une chaîne de manière sécurisée, en gérant les erreurs de format
+     * @param template Le template de format
+     * @param args Les arguments de format
+     * @return La chaîne formatée ou le template original en cas d'erreur
+     */
+    private String safeFormat(String template, Object... args) {
+        try {
+            return template.formatted(args);
+        } catch (Exception e) {
+            System.err.println("Erreur de formatage Discord: " + e.getMessage());
+            System.err.println("Template: " + template);
+            System.err.println("Arguments: " + java.util.Arrays.toString(args));
+            // Retourner le template original sans formatage plutôt que de crasher
+            return template;
+        }
     }
 
 }
